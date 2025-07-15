@@ -16,3 +16,6 @@ dependencies = [
 
 [dependency-groups]
 czi = ["pylibczirw>=5.0.0"]
+dev = [
+    "ipykernel>=6.29.5",
+]

@@ -1,83 +1,57 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from abc import ABC
+from dataclasses import dataclass, replace
+
+import numpy as np
 
 
-class TMACore(ABC):
-    """Abstract base class for all TMA core types"""
-
-    @property
-    @abstractmethod
-    def position(self) -> tuple[float, float]:
-        """Core center coordinates (x, y)"""
-        pass
-
-    @property
-    @abstractmethod
-    def bounding_box(self) -> tuple[float, float, float, float]:
-        """(x, y, width, height) in image coordinates"""
-        pass
-
-    @property
-    @abstractmethod
-    def is_detected(self) -> bool:
-        """Whether core was physically detected"""
-        pass
-
-
-@dataclass
-class DetectedTMACore(TMACore):
-    """Concrete detected core with measurement data"""
-
+@dataclass(frozen=True)
+class Position:
     x: float
     y: float
-    diameter: float
-    name: str
-    row_index: int
-    col_index: int
 
-    @property
-    def position(self) -> tuple[float, float]:
-        return (self.x, self.y)
+    def rotate(self, angle_deg: float, clip: bool = False) -> "Position":
+        """Immutable rotation around origin (clockwise for positive angles)"""
+        angle_rad = -np.deg2rad(angle_deg)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
+        x = self.x * cos_a - self.y * sin_a
+        y = self.x * sin_a + self.y * cos_a
+        if clip:
+            x, y = max(0, x), max(0, y)
+        return Position(x, y)
+
+
+@dataclass(frozen=True)
+class TMACore(ABC):
+    """Base class for all TMA cores"""
+
+    position: Position
+    diameter: float
 
     @property
     def bounding_box(self) -> tuple[float, float, float, float]:
         return (
-            self.x - self.diameter / 2,
-            self.y - self.diameter / 2,
+            self.position.x - self.diameter / 2,
+            self.position.y - self.diameter / 2,
             self.diameter,
             self.diameter,
         )
 
+
+@dataclass(frozen=True)
+class DetectedTMACore(TMACore):
     @property
     def is_detected(self) -> bool:
         return True
 
 
-@dataclass
+@dataclass(frozen=True)
 class PredictedTMACore(TMACore):
-    """Concrete predicted core position"""
-
-    x: float
-    y: float
-    diameter: float
-    name: str
-    row_index: int
-    col_index: int
     confidence: float = 1.0
-
-    @property
-    def position(self) -> tuple[float, float]:
-        return (self.x, self.y)
-
-    @property
-    def bounding_box(self) -> tuple[float, float, float, float]:
-        return (
-            self.x - self.diameter / 2,
-            self.y - self.diameter / 2,
-            self.diameter,
-            self.diameter,
-        )
 
     @property
     def is_detected(self) -> bool:
         return False
+
+    def enlarge(self, scale_pc: float = 105.0) -> "PredictedTMACore":
+        return replace(self, diameter=self.diameter * scale_pc / 100)

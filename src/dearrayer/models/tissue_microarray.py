@@ -10,7 +10,7 @@ class InvalidImageType(ValueError):
     ...
 
 
-@dataclass
+@dataclass(frozen=True)
 class TissueMicroarray:
     """
     Represents a tissue microarray image.
