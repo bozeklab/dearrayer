@@ -1,0 +1,18 @@
+[project]
+name = "dearrayer"
+version = "0.1.0"
+description = "Python tool for dearraying Tissue Microarrays (TMA)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.10.3",
+    "numpy>=2.3.1",
+    "opencv-python>=4.11.0.86",
+    "scikit-image>=0.25.2",
+    "scikit-learn>=1.7.0",
+    "scipy>=1.16.0",
+    "scipy-stubs>=1.16.0.2",
+]
+
+[dependency-groups]
+czi = ["pylibczirw>=5.0.0"]
