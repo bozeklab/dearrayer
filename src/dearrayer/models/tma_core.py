@@ -17,7 +17,7 @@ class Position:
         x = self.x * cos_a - self.y * sin_a
         y = self.x * sin_a + self.y * cos_a
         if clip:
-            x, y = max(0, x), max(0, y)
+            x, y = min(1, max(0, x)), min(1, max(0, y))
         return Position(x, y)
 
 

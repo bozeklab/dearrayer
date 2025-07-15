@@ -131,7 +131,7 @@ class GridDetectingService:
                     else 0
                 )
                 if circularity > circularity_threshold:
-                    y, x = region.centroid
+                    x, y = region.centroid[::-1]
                     relative_x, relative_y = (
                         x / max_dimension,
                         y / max_dimension,
