@@ -20,6 +20,9 @@ class Position:
             x, y = min(1, max(0, x)), min(1, max(0, y))
         return Position(x, y)
 
+    def as_tuple(self) -> tuple[float, float]:
+        return (self.x, self.y)
+
 
 @dataclass(frozen=True)
 class TMACore(ABC):
