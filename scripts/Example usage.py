@@ -4,7 +4,7 @@ from matplotlib import patches
 from numpy import uint8
 from numpy.typing import NDArray
 
-from dearrayer.models import GridCell, TissueMicroarray
+from dearrayer.models import GridCell, TissueMicroarray, DetectedTMACore
 from dearrayer.services import (
     GridDetectingService,
     GridDetectingServiceParameters,
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     )
     import pathlib as p
 
-    paths = list(p.Path("images").glob("Cycle*TMA_007.png"))
+    paths = list(p.Path("../../notebooks").glob("Cycle*TMA_007.png"))
 
     for tma_image_path in paths:
         print(tma_image_path.stem)
@@ -64,8 +64,10 @@ if __name__ == "__main__":
             "-1",
         ]
         row_lab = ["H", "G", "F", "E", "D", "C", "B", "A"]
-        gds = GridDetectingService()
         grid = gds(tma, grid_detecting_parameters)
+
+        excluded_coords = {(a, b) for a in col_lab[-3:] for b in row_lab[:-2]}
+
         plt.show()  # pyright: ignore[reportUnknownMemberType]
         plt.imshow(  # pyright: ignore[reportUnknownMemberType]
             tma.image, cmap="gray"
@@ -73,41 +75,15 @@ if __name__ == "__main__":
         plt.title(  # pyright: ignore[reportUnknownMemberType]
             f"{tma_image_path.stem}"
         )
-        for gc, dg in grid.detected_cores.items():
-            xy = (
-                dg.position.x * max(tma.image.shape),
-                dg.position.y * max(tma.image.shape),
-            )
-            ax = plt.gca()
-            ax.add_patch(
-                patches.Circle(
-                    xy,
-                    dg.diameter * max(tma.image.shape) / 2,
-                    color="red",
-                    alpha=0.3,
-                )
-            )
-            ax.annotate(  # pyright: ignore[reportUnknownMemberType]
-                "".join((gc.col_label, gc.row_label)),
-                xy,
-                fontsize=9,
-                ha="center",
-                va="center_baseline",
-            )
-
-        for coords in [
-            (c, r)
-            for c in col_lab
-            for r in row_lab
-            if (
-                GridCell(c, r) not in grid.detected_cores
-                and (c, r)
-                not in {(a, b) for a in col_lab[-3:] for b in row_lab[:-2]}
-            )
-        ]:
+        for coords in [(c, r)
+                       for c in col_lab
+                       for r in row_lab
+                       if (c, r) not in excluded_coords]:
             ax = plt.gca()
             gc = GridCell(*coords)
             dg = grid.get_or_predict(gc)
+            was_detected = isinstance(dg, DetectedTMACore)
+
             if dg is None:
                 print(f"Couldn't find core for {gc}")
                 continue
@@ -119,7 +95,7 @@ if __name__ == "__main__":
                 patches.Circle(
                     xy,
                     dg.diameter * max(tma.image.shape) / 2,
-                    color="pink",
+                    color="red" if was_detected else "pink",
                     alpha=0.3,
                 )
             )
