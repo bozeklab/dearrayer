@@ -9,11 +9,11 @@ from cv2.typing import MatLike
 from numpy.typing import NDArray
 from scipy import ndimage
 from skimage import feature, filters, measure, transform
-from skimage.morphology import (
-    convex_hull_object,
-)  # pyright: ignore[reportUnknownVariableType]
+# fmt: off
+from skimage.morphology import \
+    convex_hull_object  # pyright: ignore[reportUnknownVariableType]
+# fmt: on
 from sklearn.cluster import KMeans
-from sklearn.linear_model import LinearRegression
 
 from dearrayer.models.tissue_microarray import TissueMicroarray
 from dearrayer.models.tma_core import (
@@ -23,6 +23,7 @@ from dearrayer.models.tma_core import (
     TMACore,
 )
 from dearrayer.models.tma_grid import GridCell, TMACorePredictor, TMAGrid
+from dearrayer.services.line_fitter import Line, LineFitter, Point
 
 
 class RegionProp(Protocol):
@@ -66,7 +67,9 @@ class GridDetectingService:
             interpolation=cv2.INTER_AREA,
         )
         binary = GridDetectingService.make_binary_image(
-            small_img, relative_core_diameter, use_convex_hull=parameters.use_convex_hull
+            small_img,
+            relative_core_diameter,
+            use_convex_hull=parameters.use_convex_hull,
         )
         n_columns = len(parameters.column_labels)
         n_rows = len(parameters.row_labels)
@@ -214,10 +217,10 @@ class GridDetectingService:
             all_cores_in_col[col_idx].append(original_core.position.as_tuple())
             all_cores_in_row[row_idx].append(original_core.position.as_tuple())
 
-        column_lines = GridDetectingService.fit_line(
+        column_lines = GridDetectingService.fit_lines(
             all_cores_in_col, angle - 90
         )
-        row_lines = GridDetectingService.fit_line(all_cores_in_row, angle)
+        row_lines = GridDetectingService.fit_lines(all_cores_in_row, angle)
 
         def predictor(label: GridCell) -> PredictedTMACore | None:
             try:
@@ -244,36 +247,47 @@ class GridDetectingService:
         return return_dictionary, predictor
 
     @staticmethod
-    def fit_line(
-        data: dict[int, list[tuple[float, float]]], fallback_angle_deg: float
-    ) -> dict[int, tuple[Literal["vertical"] | float, float]]:
-        lines: dict[int, tuple[Literal["vertical"] | float, float]] = {}
-        slope_fallback = math.radians(fallback_angle_deg)
+    def fit_lines(
+        point_groups: dict[int, list[Point]],
+        fallback_angle_deg: float,
+        method: str = "orthogonal",
+    ) -> dict[int, Line]:
+        """
+        Fit lines to groups of points with fallback for single points.
 
-        for idx, points in data.items():
+        This is the main function you should use - it's a direct replacement
+        for your original fit_line function.
+
+        Args:
+            point_groups: Dictionary mapping group IDs to lists of (x, y) points
+            fallback_angle_deg: Angle for lines through single points
+            method: "orthogonal" (recommended) or "least_squares"
+
+        Returns:
+            Dictionary mapping group IDs to fitted lines
+        """
+        if method not in ["orthogonal", "least_squares"]:
+            raise ValueError(f"Unknown method: {method}")
+
+        lines: dict[int, Line] = {}
+        fitter = LineFitter()
+
+        for group_id, points in point_groups.items():
             if not points:
                 continue
+
             if len(points) == 1:
-                x, y = points[0]
-                if math.isclose(math.cos(slope_fallback), 0.0, abs_tol=1e-6):
-                    lines[idx] = ("vertical", x)
-                else:
-                    slope = math.tan(slope_fallback)
-                    intercept = y - slope * x
-                    lines[idx] = (slope, intercept)
+                # Single point: use the fallback angle
+                lines[group_id] = fitter.fit_single_point(
+                    points[0], fallback_angle_deg
+                )
             else:
-                X = np.array([p[0] for p in points]).reshape(-1, 1)
-                y_vals = np.array([p[1] for p in points])
-                if np.allclose(X, X[0]):
-                    lines[idx] = ("vertical", X[0][0])
-                else:
-                    model = LinearRegression()
-                    model.fit(  # pyright: ignore[reportUnknownMemberType]
-                        X, y_vals
-                    )
-                    slope = float(model.coef_[0])
-                    intercept = float(model.intercept_)
-                    lines[idx] = (slope, intercept)
+                # Multiple points: use specified method
+                if method == "orthogonal":
+                    lines[group_id] = fitter.fit_orthogonal(points)
+                else:  # least_squares
+                    lines[group_id] = fitter.fit_least_squares(points)
+
         return lines
 
     @staticmethod
@@ -355,7 +369,8 @@ class GridDetectingService:
         minr, minc, maxr, maxc = region.bbox
         cropped = (
             label_img[
-               max(0, minr - padding) : maxr + padding, max(0,minc - padding) : maxc + padding
+                max(0, minr - padding) : maxr + padding,
+                max(0, minc - padding) : maxc + padding,
             ]
             == region.label
         )
