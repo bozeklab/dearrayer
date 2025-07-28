@@ -39,6 +39,7 @@ class GridDetectingServiceParameters:
     column_labels: list[str]
     row_labels: list[str]
     minimum_area: float = 0.25
+    use_convex_hull: bool = True
 
 
 AnyTMACore = TypeVar("AnyTMACore", bound=TMACore)
@@ -65,7 +66,7 @@ class GridDetectingService:
             interpolation=cv2.INTER_AREA,
         )
         binary = GridDetectingService.make_binary_image(
-            small_img, relative_core_diameter
+            small_img, relative_core_diameter, use_convex_hull=parameters.use_convex_hull
         )
         n_columns = len(parameters.column_labels)
         n_rows = len(parameters.row_labels)
@@ -85,6 +86,7 @@ class GridDetectingService:
     def make_binary_image(
         gray_image: MatLike,
         relative_core_diameter: float,
+        use_convex_hull: bool,
     ) -> MatLike:
         core_diameter = relative_core_diameter * max(gray_image.shape)
         kernel_size = int(core_diameter * 0.6 * 2) | 1
@@ -105,7 +107,8 @@ class GridDetectingService:
         binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
         binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
         binary = ndimage.binary_fill_holes(binary).astype(np.uint8) * 255
-        binary = convex_hull_object(binary) * 255
+        if use_convex_hull:
+            binary = convex_hull_object(binary) * 255
         return binary
 
     @staticmethod
