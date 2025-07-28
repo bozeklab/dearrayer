@@ -352,7 +352,7 @@ class GridDetectingService:
         minr, minc, maxr, maxc = region.bbox
         cropped = (
             label_img[
-                minr - padding : maxr + padding, minc - padding : maxc + padding
+               max(0, minr - padding) : maxr + padding, max(0,minc - padding) : maxc + padding
             ]
             == region.label
         )
