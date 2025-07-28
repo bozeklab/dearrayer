@@ -215,7 +215,7 @@ class GridDetectingService:
             all_cores_in_row[row_idx].append(original_core.position.as_tuple())
 
         column_lines = GridDetectingService.fit_line(
-            all_cores_in_col, 90 - angle
+            all_cores_in_col, angle - 90
         )
         row_lines = GridDetectingService.fit_line(all_cores_in_row, angle)
 
