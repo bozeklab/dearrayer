@@ -8,7 +8,7 @@ import numpy as np
 from cv2.typing import MatLike
 from numpy.typing import NDArray
 from scipy import ndimage
-from skimage import feature, filters, measure, transform
+from skimage import feature, filters, measure, transform, util
 # fmt: off
 from skimage.morphology import \
     convex_hull_object  # pyright: ignore[reportUnknownVariableType]
@@ -37,7 +37,8 @@ class GridDetectingServiceParameters:
     row_labels: list[str]
     minimum_area: float = 0.25
     use_convex_hull: bool = True
-    random_state:int = 42
+    random_state: int = 42
+    manual_threshold: int | None = None
 
 
 AnyTMACore = TypeVar("AnyTMACore", bound=TMACore)
@@ -67,6 +68,7 @@ class GridDetectingService:
             small_img,
             relative_core_diameter,
             use_convex_hull=parameters.use_convex_hull,
+            manual_threshold=parameters.manual_threshold,
         )
         n_columns = len(parameters.column_labels)
         n_rows = len(parameters.row_labels)
@@ -88,6 +90,7 @@ class GridDetectingService:
         gray_image: MatLike,
         relative_core_diameter: float,
         use_convex_hull: bool,
+        manual_threshold: int | None,
     ) -> MatLike:
         core_diameter = relative_core_diameter * max(gray_image.shape)
         kernel_size = int(core_diameter * 0.6 * 2) | 1
@@ -97,10 +100,12 @@ class GridDetectingService:
             np.ones((kernel_size, kernel_size), np.uint8),
         )
         img_sub = cv2.subtract(gray_image, background)
-
-        # fmt: off
-        thresh = cast(float, filters.threshold_triangle(img_sub))  # pyright: ignore[reportUnknownMemberType]
-        # fmt:on
+        if manual_threshold is not None:
+            thresh = manual_threshold
+        else:
+            # fmt: off
+            thresh = cast(int, filters.threshold_triangle(img_sub))  # pyright: ignore[reportUnknownMemberType]
+            # fmt:on
         binary = (img_sub > thresh).astype(np.uint8) * 255
 
         clean_size = max(1, int(core_diameter * 0.02))
@@ -110,7 +115,7 @@ class GridDetectingService:
         binary = ndimage.binary_fill_holes(binary).astype(np.uint8) * 255
         if use_convex_hull:
             binary = convex_hull_object(binary) * 255
-        return binary
+        return util.img_as_ubyte(binary)
 
     @staticmethod
     def detect_tma_cores(
