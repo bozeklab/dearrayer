@@ -37,6 +37,7 @@ class GridDetectingServiceParameters:
     row_labels: list[str]
     minimum_area: float = 0.25
     use_convex_hull: bool = True
+    random_state:int = 42
 
 
 AnyTMACore = TypeVar("AnyTMACore", bound=TMACore)
@@ -78,6 +79,7 @@ class GridDetectingService:
             parameters.column_labels,
             parameters.row_labels,
             parameters.minimum_area,
+            parameters.random_state
         )
         return TMAGrid(tma, known_cores, predictor)
 
@@ -119,6 +121,7 @@ class GridDetectingService:
         grid_cell_col_labels: list[str],
         grid_cell_row_labels: list[str],
         min_area_relative: float,
+        random_state:int,
     ) -> tuple[dict[GridCell, DetectedTMACore], TMACorePredictor]:
         labels = cast(
             NDArray[np.uint32],
@@ -178,13 +181,13 @@ class GridDetectingService:
             ],
             np.float32,
         )
-        row_kmeans = KMeans(n_clusters=n_rows, n_init=10)
+        row_kmeans = KMeans(n_clusters=n_rows, n_init=10, random_state=random_state)
         row_labels = (
             row_kmeans.fit_predict(  # pyright: ignore[reportUnknownMemberType]
                 rotated_positions[:, 1].reshape(-1, 1)
             )
         )
-        col_kmeans = KMeans(n_clusters=n_columns, n_init=10)
+        col_kmeans = KMeans(n_clusters=n_columns, n_init=10, random_state=random_state)
         col_labels = (
             col_kmeans.fit_predict(  # pyright: ignore[reportUnknownMemberType]
                 rotated_positions[:, 0].reshape(-1, 1)
@@ -321,15 +324,15 @@ class GridDetectingService:
                 dy = centroids[j].position.y - centroids[i].position.y
                 angle = math.atan2(dy, dx)
                 angle_deg = cast(float,np.rad2deg(angle))
-                
+
                 # This is the key change: map to [-45, 45] instead of [-90, 90]
                 while angle_deg > 45:
                     angle_deg -= 90
                 while angle_deg <= -45:
                     angle_deg += 90
-                    
+
                 angles.append(angle_deg)
-        
+
         hist, bin_edges = np.histogram(angles, bins=90, range=(-45, 45))
         dominant_angle = cast(float,bin_edges[np.argmax(hist)])
         return dominant_angle
