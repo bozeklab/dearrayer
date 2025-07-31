@@ -16,12 +16,8 @@ from skimage.morphology import \
 from sklearn.cluster import KMeans
 
 from dearrayer.models.tissue_microarray import TissueMicroarray
-from dearrayer.models.tma_core import (
-    DetectedTMACore,
-    Position,
-    PredictedTMACore,
-    TMACore,
-)
+from dearrayer.models.tma_core import (DetectedTMACore, Position,
+                                       PredictedTMACore, TMACore)
 from dearrayer.models.tma_grid import GridCell, TMACorePredictor, TMAGrid
 from dearrayer.services.line_fitter import Line, LineFitter, Point
 
@@ -324,14 +320,18 @@ class GridDetectingService:
                 dx = centroids[j].position.x - centroids[i].position.x
                 dy = centroids[j].position.y - centroids[i].position.y
                 angle = math.atan2(dy, dx)
-                angle_deg = np.rad2deg(angle)
-                if angle_deg < -90:
-                    angle_deg += 180
-                elif angle_deg > 90:
-                    angle_deg -= 180
+                angle_deg = cast(float,np.rad2deg(angle))
+                
+                # This is the key change: map to [-45, 45] instead of [-90, 90]
+                while angle_deg > 45:
+                    angle_deg -= 90
+                while angle_deg <= -45:
+                    angle_deg += 90
+                    
                 angles.append(angle_deg)
-        hist, bin_edges = np.histogram(angles, bins=180, range=(-90, 90))
-        dominant_angle = bin_edges[np.argmax(hist)]
+        
+        hist, bin_edges = np.histogram(angles, bins=90, range=(-45, 45))
+        dominant_angle = cast(float,bin_edges[np.argmax(hist)])
         return dominant_angle
 
     @staticmethod
