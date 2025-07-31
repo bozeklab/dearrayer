@@ -39,6 +39,7 @@ class GridDetectingServiceParameters:
     use_convex_hull: bool = True
     random_state: int = 42
     manual_threshold: int | None = None
+    radius_margin: int = 5
 
 
 AnyTMACore = TypeVar("AnyTMACore", bound=TMACore)
@@ -81,7 +82,8 @@ class GridDetectingService:
             parameters.column_labels,
             parameters.row_labels,
             parameters.minimum_area,
-            parameters.random_state
+            parameters.random_state,
+            parameters.radius_margin
         )
         return TMAGrid(tma, known_cores, predictor)
 
@@ -127,6 +129,7 @@ class GridDetectingService:
         grid_cell_row_labels: list[str],
         min_area_relative: float,
         random_state:int,
+        radius_margin: int,
     ) -> tuple[dict[GridCell, DetectedTMACore], TMACorePredictor]:
         labels = cast(
             NDArray[np.uint32],
@@ -155,7 +158,7 @@ class GridDetectingService:
         for region in regions:
             if min_area < region.area:
                 circles = GridDetectingService.get_centers_from_region(
-                    labels, region, core_diameter / 2
+                    labels, region, core_diameter / 2, radius_margin=radius_margin
                 )
                 for x, y in circles:
                     relative_x, relative_y = (
@@ -356,7 +359,7 @@ class GridDetectingService:
         label_img: MatLike,
         region: RegionProp,
         expected_radius: float,
-        radius_margin: int = 5,
+        radius_margin: int,
         sigma: float = 2,
         padding: int = 2,
     ) -> list[tuple[float, float]]:
@@ -369,6 +372,7 @@ class GridDetectingService:
             expected_radius (float): Expected approximate radius of the circle.
             radius_margin (int): Search radii in range [expected_radius - margin, expected_radius + margin].
             sigma (float): Sigma for Canny edge detection.
+            padding (int): Padding around the circle.
 
         Returns:
             (center_x, center_y): Tuple of float with center coordinates in original image.
