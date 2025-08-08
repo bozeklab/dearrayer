@@ -17,8 +17,13 @@ Dearrayer is a specialized image analysis tool designed to automatically detect 
 
 ## Installation
 
+
 ```bash
+# using uv:
 uv add dearrayer
+
+# or pip:
+pip install dearrayer
 ```
 
 ### Optional: CZI File Support
@@ -26,7 +31,11 @@ uv add dearrayer
 If you want to work with Carl Zeiss CZI files, install the additional dependency:
 
 ```bash
+# using uv:
 uv add pylibCZIrw
+
+# or pip
+pip install pylibCZIrw
 ```
 
 ### Development Installation
@@ -172,10 +181,14 @@ Main service for detecting TMA grids.
 
 #### `GridDetectingServiceParameters`
 Configuration for grid detection:
-- `core_diameter`: Expected core diameter in pixels
-- `column_labels`: List of column identifiers
-- `row_labels`: List of row identifiers  
-- `minimum_area`: Minimum relative area for core detection (default: 0.25)
+- `core_diameter`: Expected core diameter in pixels.
+- `column_labels`: List of column identifiers.
+- `row_labels`: List of row identifiers.
+- `minimum_area`: Minimum relative area for core detection (default: 0.25).
+- `use_convex_hull`: Whether to use convex hull computation in the core detection process, takes significantly longer, but sometimes gives better results (default: True).
+- `random_state`: Random state used for KMeans initialization (default: 42).
+- `manual_threshold`: Option to manually set the binarization threshold (default: None - automatic thresholding. Can be int or None).
+- `radius_margin`: Margin of radii search in Hough transform for core detection. Worth limiting when we get some artifacts detected instead of actual cores (default: 5).
 
 ## Algorithm Details
 
